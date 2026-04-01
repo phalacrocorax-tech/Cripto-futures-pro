@@ -1,7 +1,7 @@
 {
   "name": "btc-futures-pro",
-  "private": true,
   "version": "1.0.0",
+  "private": true,
   "scripts": {
     "dev": "vite",
     "build": "vite build",
@@ -10,12 +10,11 @@
   "dependencies": {
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
-    "framer-motion": "^10.0.0",
-    "recharts": "^2.10.0"
+    "recharts": "^2.7.2"
   },
   "devDependencies": {
-    "vite": "^5.0.0",
-    "@vitejs/plugin-react": "^4.0.0",
-    "vite-plugin-pwa": "^0.20.0"
+    "vite": "^4.4.9",
+    "@jridgewell/sourcemap-codec": "^1.4.8",
+    "glob": "^11.3.0"
   }
 }
