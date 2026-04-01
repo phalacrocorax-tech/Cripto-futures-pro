@@ -1,0 +1,127 @@
+import { useEffect, useMemo, useState } from "react";
+import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer } from "recharts";
+
+export default function App() {
+  const [btcPrice, setBtcPrice] = useState(0);
+
+  const [type, setType] = useState(1); // 1 long, -1 short
+  const [entry1, setEntry1] = useState(0);
+  const [size1, setSize1] = useState(0);
+  const [entry2, setEntry2] = useState(0);
+  const [size2, setSize2] = useState(0);
+  const [margin, setMargin] = useState(100);
+  const [maintenance, setMaintenance] = useState(0.5);
+  const [sl, setSl] = useState(0);
+  const [tp, setTp] = useState(0);
+  const [balance, setBalance] = useState(1000);
+  const [riskPct, setRiskPct] = useState(2);
+
+  // 🔥 BTC PRICE REAL TIME
+  useEffect(() => {
+    const fetchPrice = async () => {
+      try {
+        const res = await fetch("https://api.binance.com/api/v3/ticker/price?symbol=BTCUSDT");
+        const data = await res.json();
+        setBtcPrice(parseFloat(data.price));
+      } catch (e) {
+        console.error(e);
+      }
+    };
+
+    fetchPrice();
+    const interval = setInterval(fetchPrice, 2000);
+    return () => clearInterval(interval);
+  }, []);
+
+  const totalSize = size1 + size2;
+
+  const avgPrice = useMemo(() => {
+    if (!totalSize) return 0;
+    return (entry1 * size1 + entry2 * size2) / totalSize;
+  }, [entry1, entry2, size1, size2]);
+
+  const positionValue = avgPrice * totalSize;
+
+  const liquidation = useMemo(() => {
+    if (!avgPrice || !positionValue) return 0;
+    return type === 1
+      ? avgPrice * (1 - margin / positionValue + maintenance / 100)
+      : avgPrice * (1 + margin / positionValue - maintenance / 100);
+  }, [avgPrice, margin, positionValue, maintenance, type]);
+
+  const pnl = (price) => {
+    if (!price || !avgPrice) return 0;
+    return type === 1
+      ? (price - avgPrice) * totalSize
+      : (avgPrice - price) * totalSize;
+  };
+
+  const roe = margin ? (pnl(btcPrice) / margin) * 100 : 0;
+
+  // 🎯 AUTO POSITION SIZE
+  const riskUSDT = balance * (riskPct / 100);
+  const stopDistance = Math.abs(avgPrice - sl);
+  const suggestedSize = stopDistance ? riskUSDT / stopDistance : 0;
+
+  // 📊 CHART
+  const chartData = useMemo(() => {
+    if (!avgPrice) return [];
+    return Array.from({ length: 50 }, (_, i) => {
+      const change = -20 + (i * 40) / 49;
+      const price = avgPrice * (1 + change / 100);
+      return { price, pnl: pnl(price) };
+    });
+  }, [avgPrice, totalSize, type]);
+
+  return (
+    <div style={{ background: "#0f172a", minHeight: "100vh", color: "white", padding: 20 }}>
+      <h1>BTC Futures PRO</h1>
+
+      <h2>Preço BTC: ${btcPrice.toFixed(2)}</h2>
+
+      <div>
+        <select onChange={(e) => setType(Number(e.target.value))}>
+          <option value={1}>Long</option>
+          <option value={-1}>Short</option>
+        </select>
+
+        <input placeholder="Balance" onChange={(e) => setBalance(+e.target.value)} />
+        <input placeholder="Risk %" onChange={(e) => setRiskPct(+e.target.value)} />
+
+        <input placeholder="Entry 1" onChange={(e) => setEntry1(+e.target.value)} />
+        <input placeholder="Size 1" onChange={(e) => setSize1(+e.target.value)} />
+
+        <input placeholder="Entry 2" onChange={(e) => setEntry2(+e.target.value)} />
+        <input placeholder="Size 2" onChange={(e) => setSize2(+e.target.value)} />
+
+        <input placeholder="Margin" onChange={(e) => setMargin(+e.target.value)} />
+        <input placeholder="Stop Loss" onChange={(e) => setSl(+e.target.value)} />
+        <input placeholder="Take Profit" onChange={(e) => setTp(+e.target.value)} />
+      </div>
+
+      <hr />
+
+      <h3>Preço Médio: ${avgPrice.toFixed(2)}</h3>
+      <h3>Valor Posição: ${positionValue.toFixed(2)}</h3>
+      <h3>Liquidação: ${liquidation.toFixed(2)}</h3>
+
+      <h3>PnL Atual: ${pnl(btcPrice).toFixed(2)}</h3>
+      <h3>ROE: {roe.toFixed(2)}%</h3>
+
+      <h3>Suggested Size: {suggestedSize.toFixed(4)} BTC</h3>
+
+      <hr />
+
+      <h2>Gráfico PnL</h2>
+
+      <ResponsiveContainer width="100%" height={300}>
+        <LineChart data={chartData}>
+          <XAxis dataKey="price" />
+          <YAxis />
+          <Tooltip />
+          <Line type="monotone" dataKey="pnl" stroke="#22c55e" dot={false} />
+        </LineChart>
+      </ResponsiveContainer>
+    </div>
+  );
+}

@@ -1,0 +1,10 @@
+export default function Metric({ label, value, prefix = '', suffix = '', highlight = '' }) {
+  return (
+    <div>
+      <p className="text-gray-400 text-sm">{label}</p>
+      <p className={`text-lg font-semibold ${highlight}`}>
+        {prefix}{Number.isFinite(value) ? value.toFixed(2) : '-'}{suffix}
+      </p>
+    </div>
+  )
+}
